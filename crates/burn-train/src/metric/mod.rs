@@ -2,7 +2,9 @@
 pub mod state;
 
 mod acc;
+mod precision;
 mod base;
+
 #[cfg(feature = "metrics")]
 mod cpu_temp;
 #[cfg(feature = "metrics")]
