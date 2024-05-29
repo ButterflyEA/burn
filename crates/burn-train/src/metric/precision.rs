@@ -5,39 +5,6 @@ use super::{MetricEntry, MetricMetadata};
 use crate::metric::{Metric, Numeric};
 use burn_core::tensor::backend::Backend;
 use burn_core::tensor::{ElementConversion, Int, Tensor};
-use burn_core::prelude::Shape;
-
-struct ConfusionMatrix <B: Backend>{
-    matrix: Vec<Vec<i64>>,
-}
-
-impl <B: Backend>ConfusionMatrix <B>{
-    fn new(dim: usize) -> ConfusionMatrix<B> {
-        let matrix = vec![vec![0 ; dim] ; dim];
-
-        Self { matrix }
-    }
-
-    fn calculate_matrix(&mut self, input: &PrecisionInput<B>) {
-        let [batch_size, _n_classes] = input.outputs.dims();
-        let predictions = input.outputs
-        .clone()
-        .argmax(1)
-        .to_device(&B::Device::default())
-        .reshape([batch_size]);
-
-        let cm = ConfusionMatrix::new(_n_classes);
-
-        for i in 0..batch_size {
-            if predictions[i == targets[i] {
-                cm[predictions[i]][predictions[i]]+=1;
-            }
-        }
-
-
-
-    }
-}
 
 /// The precision metric.
 #[derive(Default)]

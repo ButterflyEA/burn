@@ -4,6 +4,7 @@ pub mod state;
 mod acc;
 mod precision;
 mod base;
+mod confusion_matrix;
 
 #[cfg(feature = "metrics")]
 mod cpu_temp;
