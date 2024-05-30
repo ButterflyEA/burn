@@ -9,35 +9,24 @@ pub struct ConfusionMatrix <B: Backend> {
 
 impl <B: Backend> ConfusionMatrix <B> {
     pub fn new() -> Self {
-        let device = Default::default();
-        let matrix: Tensor<B, 2, Int> = Tensor::zeros([1,1], &device);
+        let matrix: Tensor<B, 2, Int> = Tensor::zeros([1,1], &B::Device::default());
         Self {matrix}
     }
 
-    pub fn from_outputs(&mut self, outputs: &Tensor<B, 2>, targets: &Tensor<B, 1, Int>) {
-        let device = Default::default();
-        let [batch_size, _n_classes] = outputs.dims();     
-        let predictions = outputs
-            .clone()
-            .argmax(1)
-            .to_device(&device)
-            .reshape([batch_size]); 
-
-
-        let ee = predictions
+    pub fn from_outputs(&mut self, outputs: &Tensor<B, 1, Int>, targets: &Tensor<B, 1, Int>, _n_classes: usize) -> ConfusionMatrix<B> {
+         let [batch_size] = outputs.dims();
+         let ee = outputs
                 .clone()
                 .equal(targets.clone())
                 .argwhere()
                 .to_data();
 
-        //let classes = Tensor::<Backend,1,Int>::from_data([0], &device);
-        //let tensor_updated = tensor.slice_assign(2..3, 2..3, tensor.slice(2..3, 2..3) + value);
-        let mut matrix = Tensor::<B, 2, Int>::zeros([_n_classes,_n_classes], &device);
+        let mut matrix = Tensor::<B, 2, Int>::zeros([_n_classes,_n_classes], &B::Device::default());
 
         let mut upd_mat = matrix.clone();
 
         for j in 0.. batch_size {
-            let cls_pred = i64::from_elem(predictions.clone().to_data().value[j]) as usize;
+            let cls_pred = i64::from_elem(outputs.clone().to_data().value[j]) as usize;
             let cls_tgt = i64::from_elem(targets.clone().to_data().value[j]) as usize;
 
             if cls_pred == cls_tgt {
@@ -57,11 +46,11 @@ impl <B: Backend> ConfusionMatrix <B> {
                     .slice_assign( [cls_pred..cls_pred+1, cls_tgt..cls_tgt+1], values);                 
             }
 
-            matrix = upd_mat.clone();
-        
+            matrix = upd_mat.clone();        
         }
         self.matrix = matrix;
         //println!("{}", self.matrix);
+        self.clone()
     }
 
     pub fn set(&mut self, t: Tensor::<B,2,Int>) {
@@ -93,7 +82,7 @@ impl <B: Backend> ConfusionMatrix <B> {
                 let tn = i32::from_elem(sum.to_data().value[0]) - tp - fp - _fn;
 
                 let matrix = 
-                    Tensor::<B, 2, Int>::from_data([[tp, fp],[_fn, tn]], &device);
+                    Tensor::<B, 2, Int>::from_ints([[tp, fp],[_fn, tn]], &device);
 
                 println!("{}", matrix);
                 
