@@ -55,8 +55,6 @@ impl<B: Backend> PrecisionMetric<B> {
         else {
             let v = cm.split_cm();
             let l = v.len();
-            println!("{}", l);
-
             let precision = v.into_iter()
                 .map(|x| self.calc_precision(x)).sum::<f64>() / l as f64;
             
@@ -96,11 +94,12 @@ impl<B: Backend> Metric for PrecisionMetric<B> {
                 self.calc_precision(cm)
             }
         };
+        println!("{}", precision);
 
         self.state.update(
-            100.0 * precision,
+            precision,
             batch_size,
-            FormatOptions::new(Self::NAME).unit("%").precision(2),
+            FormatOptions::new(Self::NAME).unit("").precision(2),
         )
     }
 
@@ -138,8 +137,55 @@ mod tests {
         );
 
         let _entry = metric.update(&input, &MetricMetadata::fake());
-        assert_eq!(50.0, metric.value());
+        assert_eq!(0.5, metric.value());
     }
+
+    #[test]
+    fn test_precision_without_padding2() {
+        let device = Default::default();
+        let mut metric = PrecisionMetric::<TestBackend>::new();
+        let input = PrecisionInput::new(
+            Tensor::from_data(
+                [
+                    [2., 3., 6.], //2
+                    [4., 5., 3.], //1
+                    [2., 7., 12.],//2
+                    [22., 3., 6.], //0
+                    [4., 5., 3.], //1
+                    [22., 7., 12.] //0   
+                ],
+                &device,
+            ),
+            Tensor::from_data([1, 1, 2, 0, 1, 2], &device),
+        );
+
+        let _entry = metric.update(&input, &MetricMetadata::fake());
+        assert_eq!( 0.6666666666666666, metric.value());
+    } 
+
+    
+    #[test]
+    fn test_binary() {
+        let device = Default::default();
+        let mut metric = PrecisionMetric::<TestBackend>::new();
+        let input = PrecisionInput::new(
+            Tensor::from_data(
+                [
+                    [2., 3.], //1
+                    [4., 5.], //1
+                    [2., 7.],//1
+                    [22., 3.], //0
+                    [4., 5.], //1
+                    [22., 7.] //0   
+                ],
+                &device,
+            ),
+            Tensor::from_data([1, 1, 1, 0, 1, 0], &device),
+        );
+
+        let _entry = metric.update(&input, &MetricMetadata::fake());
+        assert_eq!( 1.0, metric.value());
+    }     
 
     // #[test]
     // fn test_precision_with_padding() {

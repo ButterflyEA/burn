@@ -15,36 +15,21 @@ impl <B: Backend> ConfusionMatrix <B> {
 
     pub fn from_outputs(&mut self, outputs: &Tensor<B, 1, Int>, targets: &Tensor<B, 1, Int>, _n_classes: usize) -> ConfusionMatrix<B> {
          let [batch_size] = outputs.dims();
-         let ee = outputs
-                .clone()
-                .equal(targets.clone())
-                .argwhere()
-                .to_data();
 
         let mut matrix = Tensor::<B, 2, Int>::zeros([_n_classes,_n_classes], &B::Device::default());
 
-        let mut upd_mat = matrix.clone();
+        //let mut upd_mat: Tensor<B, 2, Int> = matrix.clone();
 
         for j in 0.. batch_size {
             let cls_pred = i64::from_elem(outputs.clone().to_data().value[j]) as usize;
             let cls_tgt = i64::from_elem(targets.clone().to_data().value[j]) as usize;
 
-            if cls_pred == cls_tgt {
-                let values = matrix
-                    .clone()
-                    .slice([cls_pred..cls_pred+1, cls_tgt..cls_tgt+1]) + 1;
+            let values = matrix
+                .clone()
+                .slice([cls_pred..cls_pred+1, cls_tgt..cls_tgt+1]) + 1;
 
-                upd_mat = matrix
-                    .slice_assign( [cls_pred..cls_pred+1, cls_tgt..cls_tgt+1], values); 
-            }
-            else {
-                let values = matrix
-                    .clone()
-                    .slice([cls_pred..cls_pred+1, cls_tgt..cls_tgt+1]) + 1;
-
-                upd_mat = matrix
-                    .slice_assign( [cls_pred..cls_pred+1, cls_tgt..cls_tgt+1], values);                 
-            }
+            let upd_mat = matrix
+                .slice_assign( [cls_pred..cls_pred+1, cls_tgt..cls_tgt+1], values); 
 
             matrix = upd_mat.clone();        
         }
@@ -83,8 +68,6 @@ impl <B: Backend> ConfusionMatrix <B> {
 
                 let matrix = 
                     Tensor::<B, 2, Int>::from_ints([[tp, fp],[_fn, tn]], &device);
-
-                println!("{}", matrix);
                 
                 let mut cm = ConfusionMatrix::<B>::new();
                 cm.set(matrix.clone());
