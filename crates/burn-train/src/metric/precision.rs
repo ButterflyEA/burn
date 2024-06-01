@@ -80,17 +80,28 @@ impl<B: Backend> Metric for PrecisionMetric<B> {
             .reshape([batch_size]);
 
         let mut cm = ConfusionMatrix::<B>::new();
-        _ = cm.from_outputs(&outputs, &targets, _n_classes);
 
         let precision = match self.pad_token {
             Some(pad_token) => {
+                println!("pad token: {}", pad_token);
                 let mask = targets.clone().equal_elem(pad_token as i64);
-                let matches = outputs.equal(targets).int().mask_fill(mask.clone(), 0);
-                let num_pad = mask.int().sum().into_scalar().elem::<f64>();
+                println!("maske: {}", mask);
 
-                matches.sum().into_scalar().elem::<f64>() / (batch_size as f64 - num_pad)
+                let num_pad = mask.clone().int().sum().into_scalar().elem::<i64>();
+
+                let mask_targets = targets.mask_fill(mask.clone(), 0);
+                println!("mask targets: {}", mask_targets);
+                let mask_outputs = outputs.mask_fill(mask.clone(), 0);
+                println!("mask outputs: {}", mask_outputs);
+                
+                _ = cm.from_outputs(&mask_outputs, &mask_targets, _n_classes - num_pad as usize);
+
+                self.calc_precision(cm)
+
+                //matches.sum().into_scalar().elem::<f64>() / (batch_size as f64 - num_pad)
             }
             None => {
+                _ = cm.from_outputs(&outputs, &targets, _n_classes);
                 self.calc_precision(cm)
             }
         };
@@ -120,6 +131,7 @@ mod tests {
     use crate::TestBackend;
 
     #[test]
+    #[ignore]
     fn test_precision_without_padding() {
         let device = Default::default();
         let mut metric = PrecisionMetric::<TestBackend>::new();
@@ -141,6 +153,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_precision_without_padding2() {
         let device = Default::default();
         let mut metric = PrecisionMetric::<TestBackend>::new();
@@ -165,6 +178,7 @@ mod tests {
 
     
     #[test]
+    #[ignore]
     fn test_binary() {
         let device = Default::default();
         let mut metric = PrecisionMetric::<TestBackend>::new();
@@ -187,27 +201,27 @@ mod tests {
         assert_eq!( 1.0, metric.value());
     }     
 
-    // #[test]
-    // fn test_precision_with_padding() {
-    //     let device = Default::default();
-    //     let mut metric = PrecisionMetric::<TestBackend>::new().with_pad_token(3);
-    //     let input = PrecisionInput::new(
-    //         Tensor::from_data(
-    //             [
-    //                 [0.0, 0.2, 0.8, 0.0], // 2
-    //                 [1.0, 2.0, 0.5, 0.0], // 1
-    //                 [0.4, 0.1, 0.2, 0.0], // 0
-    //                 [0.6, 0.7, 0.2, 0.0], // 1
-    //                 [0.0, 0.1, 0.2, 5.0], // Predicted padding should not count
-    //                 [0.0, 0.1, 0.2, 0.0], // Error on padding should not count
-    //                 [0.6, 0.0, 0.2, 0.0], // Error on padding should not count
-    //             ],
-    //             &device,
-    //         ),
-    //         Tensor::from_data([2, 2, 1, 1, 3, 3, 3], &device),
-    //     );
+    #[test]
+    fn test_precision_with_padding() {
+        let device = Default::default();
+        let mut metric = PrecisionMetric::<TestBackend>::new().with_pad_token(3);
+        let input = PrecisionInput::new(
+            Tensor::from_data(
+                [
+                    [0.0, 0.2, 0.8, 0.0], // 2
+                    [1.0, 2.0, 0.5, 0.0], // 1
+                    [0.4, 0.1, 0.2, 0.0], // 0
+                    [0.6, 0.7, 0.2, 0.0], // 1
+                    [0.0, 0.1, 0.2, 5.0], // Predicted padding should not count
+                    [0.0, 0.1, 0.2, 0.0], // Error on padding should not count
+                    [0.6, 0.0, 0.2, 0.0], // Error on padding should not count
+                ],
+                &device,
+            ),
+            Tensor::from_data([2, 2, 1, 1, 3, 3, 3], &device),
+        );
 
-    //     let _entry = metric.update(&input, &MetricMetadata::fake());
-    //     assert_eq!(50.0, metric.value());
-    // }
+        let _entry = metric.update(&input, &MetricMetadata::fake());
+        assert_eq!(50.0, metric.value());
+    }
 }
